@@ -3,7 +3,19 @@
 
 import subprocess
 
+version_number = "1.0.0"
+
 docker_active_txt = "/home/user/.docker_running.txt"
+
+def check_args():
+	import sys
+	if len(sys.argv) == 1: main()
+	elif len(sys.argv) == 2:
+		if ((sys.argv[1] == "-a" or sys.argv[1] == "--all" )): main()
+		elif ((sys.argv[1] == "-v" or sys.argv[1] == "--version" )): show_version()
+        elif ((sys.argv[1] == "-h" or sys.argv[1] == "--help" )): show_help()
+		else: print ( "Invalid argument" )
+	else: print ( "Invalid arguments" )
 
 def line_count(filename):
     with open(filename, 'r') as fp:
@@ -35,8 +47,19 @@ def get_num_of_upgradable_packages():
 	elif num_of_upgradable_packages == "1": return "There is currently one upgradable package."
 	else: return "There are currently " + num_of_upgradable_packages + " upgradable packages."
 
+def show_help():
+	print ( "Usage: server_status.py [OPTION]" )
+	print ( "Show the status of your server." )
+	print ( " " )
+	print ( "  -a, --all             Check all status" )
+	print ( "  -v, --version         Show program's version number and exit" )
+	print ( "  -h, --help            Show this help message and exit" )	
+	
+def show_version():
+	print ( "server_status.py version " + version_number )
+
 def main():
 	print ( get_server_uptime() + get_num_of_upgradable_packages() + "\n" + get_docker_info() + "\n" + get_virsh_info())
 
 if __name__=="__main__":
-	main()
+	check_args()
