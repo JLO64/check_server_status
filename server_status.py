@@ -39,7 +39,7 @@ def line_count(filename):
 
 def read_lines_without_newline(filename):
 	with open(filename, 'r') as fp:
-        return fp.read().replace('\n', ' ')
+		return fp.read().replace('\n', ' ')
 
 def print_docker_info():
 	if os.path.exists(docker_active_txt):
@@ -59,24 +59,28 @@ def print_virsh_info():
 def print_server_uptime():
 	print( "Your server has been " + subprocess.run("uptime -p", shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8').replace('\n', ' ')[:-1] + "." )
 
+def return_line_with_matching_string(stringtolookfor, stringtolookin):
+	for line in stringtolookin.splitlines():
+		if stringtolookfor in line:
+			return line
+
 def print_num_of_upgradable_packages():
-	num_of_upgradable_packages = subprocess.run("apt-get --just-print upgrade", shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8').splitlines()[-1].split()[-3]
-	if num_of_upgradable_packages == "0": print( "There are no upgradable packages." )
-	elif num_of_upgradable_packages == "1": print( "There is currently one upgradable package.")
-	else: print( "There are currently " + num_of_upgradable_packages + " upgradable packages." )
+	num_of_upgradable_packages = return_line_with_matching_string("upgraded, ", subprocess.run("apt-get --just-print upgrade", shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')).split()[0]
+	if num_of_upgradable_packages == "0": print( "There are no packages to upgrade." )
+	elif num_of_upgradable_packages == "1": print( "There is currently one package to upgrade.")
+	else: print( "There are currently " + num_of_upgradable_packages + " packages to upgrade." )
 
 def print_help():
 	print ( "Usage: server_status.py [OPTION]..." )
 	print ( " " )
-	print ( "Options: " )
-	print ( "	-a, --all              Check all status" )
-	print ( "	-d, --docker           Check docker status" )
-	print ( "	--docker-path=PATH     Specify the path to the docker_running file" )
-	print ( "	-p, --packages         Check number of upgradable packages" )
-	print ( "	-u, --uptime           Check server uptime" )
-	print ( "	-v, --virsh 		   Check virtual machines status" )
-	print ( "	-h, --help             Show this help message and exit" )
-	print ( "  	--version              Show program's version number and exit" )
+	print ( "  -a, --all              Show all status" )
+	print ( "  -d, --docker           Show docker status" )
+	print ( "  --docker-path=PATH     Specify the path to the docker_running.txt file" )
+	print ( "  -v, --virtual-machines Show virtual machine status" )
+	print ( "  -p, --packages         Show number of upgradable packages" )
+	print ( "  -u, --uptime           Show server uptime" )
+	print ( "  -h, --help             Show this help message and exit" )
+	print ( "  --version              Show program's version number and exit" )
 	
 def print_version():
 	print ( "server_status.py version " + version_number )
