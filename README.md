@@ -39,13 +39,14 @@ You can run it using python:
 
 	Options:
 		-a, --all              Check all status
+		--api-server		      Start the api server
 		-d, --docker           Check docker status
 		--docker-path=PATH     Specify the path to the docker_running file
+		-h, --help             Show this help message and exit
 		-p, --packages         Check number of upgradable packages
 		-u, --uptime           Check server uptime
-		-v, --virsh			   Check virtual machines status
-		-h, --help             Show this help message and exit
 		--version              Show program's version number and exit
+		-v, --virtual-machines Show virtual machine status
 	
 
 ### With "-a" or "--all" argument
@@ -77,6 +78,24 @@ You can specify the path to the .docker_running.txt file with the "--docker-path
 
 	$ ./server_status.py --uptime
 	Your server has been up 6 hours, 47 minutes
+
+## API Server Usage
+To launch the API server, run the following command:
+
+	$ ./server_status.py --api-server
+
+The API will be available at http://localhost:3000/server-status
+
+### API Server Output Examples
+To request the status using the equivalent of the "-a" argument, use the following URL:
+
+	http://localhost:3000/server-status?show_all=True
+
+The request will be formated as a JSON with the key "response" containing a string.
+
+	{
+		"response": "Your server has been up 6 hours, 47 minutes\nThere are currently 3 upgradable packages.\nCurrently there are 2 running docker containers: (rutorrent jellyfin)\nThere are no running virtual machines."
+	}
 
 
 ## Credits
