@@ -4,9 +4,12 @@
 version_number = "1.0.0"
 
 from fastapi import FastAPI
-import subprocess, os, sys, getopt, uvicorn
+from getpass import getpass
+import subprocess, os, sys, getopt, uvicorn, json
 
 docker_active_txt = os.path.expanduser("~") + "/.docker_running.txt"
+ips_to_check_json = os.path.expanduser("~") + "/.ips_to_check.json"
+version_number = "1.0.0"
 
 class runClass:
 	def __init__(self):
@@ -17,12 +20,13 @@ class runClass:
 		self.run_print_server_uptime = False
 		self.run_print_num_of_upgradable_packages = False
 		self.run_print_virsh_info = False
+		self.run_check_ips = False
 
 api_server = False
 
 app = FastAPI()
 @app.get("/server-status")
-async def api_responce(uptime = False, docker = False, packages = False, virtual_machines = False, show_all = False, version = False, show_help = False):
+async def api_responce(uptime = False, docker = False, packages = False, virtual_machines = False, show_all = False, version = False, show_help = False, show_ips = False):
 	apiargsBool = runClass()
 
 	apiargsBool.run_print_server_uptime = uptime
@@ -32,13 +36,14 @@ async def api_responce(uptime = False, docker = False, packages = False, virtual
 	apiargsBool.run_print_all = show_all
 	apiargsBool.run_print_version = version
 	apiargsBool.run_print_help = show_help
+	apiargsBool.run_check_ips = show_ips
 
 	response = return_info_as_string(apiargsBool)
 	return {"response":response}
 
 def check_if_server(argv):
 	try:
-		opts, args = getopt.getopt(argv, "adpuvh", ["all", "docker", "packages", "uptime", "virtual-machines", "help", "version", "docker-path=", "api-server"])
+		opts, args = getopt.getopt(argv, "adpuvih", ["all", "docker", "packages", "uptime", "virtual-machines", "ip-check", "help", "version", "docker-path=", "api-server", "ip-json="])
 	except getopt.GetoptError:
 		print ( "Invalid arguments. Please use -h or --help for help." )
 		sys.exit(2)
@@ -50,12 +55,19 @@ def check_if_server(argv):
 		if (opt == "--docker-path"):
 			global docker_active_txt
 			docker_active_txt = arg
+		if (opt == "--ip-json"):
+			global ips_to_check_json
+			ips_to_check_json = arg
 	#check if api server
 	for opt, arg in opts:
 		if (opt == "--api-server"):
 			uvicorn.run(app, host="0.0.0.0", port=3000)
-	sys.exit()
+			sys.exit()
 	check_local_args(opts)
+
+def import_listofips_from_JSON(filetoimport):
+	with open(filetoimport) as f:
+		return json.load(f)
 
 def check_local_args(opts):
 	printargsBool = runClass()
@@ -68,10 +80,10 @@ def check_local_args(opts):
 		elif opt[0] in ("-u", "--uptime"):	printargsBool.run_print_server_uptime = True
 		elif opt[0] in ("-p", "--packages"): printargsBool.run_print_num_of_upgradable_packages = True
 		elif opt[0] in ("-v", "--virtual-machines"):  printargsBool.run_print_virsh_info = True
+		elif opt[0] in ("-i", "--ip-check"):  printargsBool.run_check_ips = True
 	print(return_info_as_string(printargsBool))
 
 def return_info_as_string(boolClasstoCheck):
-	print(boolClasstoCheck.run_print_all)
 	if (boolClasstoCheck.run_print_help):
 		return return_help()
 	if (boolClasstoCheck.run_print_version):
@@ -88,11 +100,12 @@ def return_info_as_string(boolClasstoCheck):
 		if (boolClasstoCheck.run_print_num_of_upgradable_packages): responce += return_num_of_upgradable_packages() + "\n"
 		if (boolClasstoCheck.run_print_docker_info): responce += return_docker_info() + "\n"
 		if (boolClasstoCheck.run_print_virsh_info): responce += return_virsh_info() + "\n"
+	if (boolClasstoCheck.run_check_ips): responce += return_ips_to_check() + "\n"
 	return responce[:-1]
 
 def line_count(filename):
-    with open(filename, 'r') as fp:
-        return len(fp.readlines())
+	with open(filename, 'r') as fp:
+		return len(fp.readlines())
 
 def read_lines_without_newline(filename):
 	with open(filename, 'r') as fp:
@@ -139,10 +152,40 @@ def return_help():
 	response += ( "\n  -d, --docker           Show docker status" )
 	response += ( "\n  --docker-path=PATH     Specify the path to the docker_running.txt file" )
 	response += ( "\n  -h, --help             Show this help message and exit" )
+	response += ( "\n  -i, --ip-check         Check IPs connected to network" )
 	response += ( "\n  -p, --packages         Show number of upgradable packages" )
 	response += ( "\n  -u, --uptime           Show server uptime" )
 	response += ( "\n  --version              Show program's version number and exit" )
 	response += ( "\n  -v, --virtual-machines Show virtual machine status" )
+	return response
+
+def return_ips_to_check():
+	countallips = False
+	listallips = False	
+
+	if os.geteuid() != 0: return "This script must be run as root in order to check ips."
+		
+	response = ""
+	scan_results = subprocess.run("arp-scan -l", shell=True, stdout=subprocess.PIPE).stdout.decode('utf-8')
+	try:
+		jsondata = import_listofips_from_JSON(ips_to_check_json)
+	except:
+		return "Unable to open " + ips_to_check_json + ". Please check if the file exists and is properly formatted."
+	
+	if countallips:
+		response += ("There are " + str(scan_results.count("192.168.1")) + " devices connected to the network.")
+	if listallips:
+		for line in scan_results.splitlines():
+			if ("192.168.1" in line) and ("Interface" not in line): response += (line.split()[0])
+			
+	for ipobject in jsondata:
+		if ipobject["IP"] in scan_results:
+			if "TrueStatement" in ipobject: response += ( ipobject["TrueStatement"] )
+			else: response += (ipobject["Name"] + " is on the network.")
+		else:
+			if "FalseStatement" in ipobject: response += (ipobject["FalseStatement"])
+			#else: print(ipobject["Name"] + " is NOT on the network.")
+
 	return response
 
 def return_version():

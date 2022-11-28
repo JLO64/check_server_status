@@ -10,6 +10,10 @@ Suggestions and bug reports are appreciated!
 
 ## Prerequisites
 
+## Apt Packages
+
+	apt install arp-scan
+
 ### To Check Docker Status
 
 Add this line to your sudo crontab file (be sure to change the user in the path):
